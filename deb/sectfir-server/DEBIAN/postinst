@@ -1,0 +1,27 @@
+##Script postinstalation
+
+#check if user exists
+
+if ! grep -q sectfir /etc/passwd ; then
+        useradd -r -s /usr/sbin/nologin sectfir
+fi
+
+#Generate Keys
+if [ ! -f /etc/sectfir/keys/public.pem ]; then
+	openssl req -x509 -newkey rsa:2048 -keyout /etc/sectfir/keys/private.pem -out /etc/sectfir/keys/public.pem -sha256 -days 3650 -nodes -subj "/CN=LocalServer"
+	chown sectfir /etc/sectfir/keys/private.pem
+	chown sectfir /etc/sectfir/keys/public.pem
+	chmod 700 /etc/sectfir/keys/public.pem
+	chmod 700 /etc/sectfir/keys/private.pem
+fi
+chown sectfir /var/lib/sectfir
+chmod 700 /var/lib/sectfir
+
+#initalize Apparmor profile
+if [ -f /usr/sbin/apparmor_parser ]; then
+	apparmor_parser -r /etc/apparmor.d/usr.local.bin.sectfir-server
+fi
+#prepare systemd profile
+systemctl daemon-reload
+systemctl start sectfir.service
+systemctl enable sectfir.service

@@ -1,0 +1,11 @@
+Source: sectifr-server
+Section: net
+Priority: optional
+Maintainer: Samuel Torres <arqestorres@gmail.com>
+Homepage: https://github.com/arqes-0/sectfir
+Package: sectfir-server
+Version: 0.1.4-1
+Architecture: amd64
+Depends: libc6(>=2.41-12), libssl3t64(>=3.5.6-1~deb13u1), libiniparser4 (>=4.2.6-1)
+Description: File repository server with SSL/TLS encription
+

@@ -1,0 +1,14 @@
+[Unit]
+Description=Sectfir SSL/TLS server
+After=network.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+[Service]
+Type=simple
+User=sectfir
+UMask=007
+ExecStart=/usr/local/bin/sectfir-server
+Restart=always
+RestartSec=5
+[Install]
+WantedBy=multi-user.target

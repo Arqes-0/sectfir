@@ -1,0 +1,24 @@
+include <tunables/global>
+
+/usr/local/bin/sectfir-server {
+
+        #Includes
+        include <abstractions/base>
+        include <abstractions/nameservice>
+        include <abstractions/openssl>
+
+        #Allow read the binary
+        /usr/local/bin/sectfir-server mr,
+        #Network Acces
+        network inet stream,
+
+        #Working paths
+        /etc/sectfir/ r,
+        /etc/sectfir/config.ini r,
+        /etc/sectfir/keys/private.pem r,
+        /etc/sectfir/keys/public.pem r,
+        /etc/sectfir/sectfir.pass rk,
+        /var/lib/sectfir/ r,
+        /var/lib/sectfir/** rwl,
+}
+
