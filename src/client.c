@@ -74,6 +74,12 @@ typedef struct {
   uint8_t settings;
 } sectfirSettings;
 
+enum {
+    REMOVE = 0x86,
+    PARTIAL_REMOVE = 0x82
+};
+
+
 /*
  * @brief Sets the configuration of the client
  * @return always returns 0
@@ -1287,7 +1293,38 @@ int main(int argc, char *argv[]) {
       SSL_write(ssl_stream, &list, sizeof(list));
       printFiles(ssl_stream, argv[2]);
 
-    } else {
+    } 
+    else if(!strcmp(argv[1], "remove")) {
+            if(argc > 2){
+                if(strlen(argv[2]) <= PATH_MAX){
+                petition.mode = REMOVE;
+                SSL_write(ssl_stream, &petition, sizeof(petition));
+
+                    size_t len = strlen(argv[2]) + 1;
+                    SSL_write(ssl_stream, &petition, len);
+
+                    //look for response
+                    wrapperSSL_read(ssl_stream,&status,sizeof(sectfirStatus));
+                    if(status.code != 0x81){
+                        if(status.code == PARTIAL_REMOVE){
+                            printf("partialy removed %s\n"
+                                    "some files couldnt be deleted\n",argv[2]);
+                        }else{
+                            printf("Couldnt delete %s\n", argv[2]);
+                        }
+                    }else{
+                        printf("deleted %s\n", argv[2]);
+                    }
+                }else{
+                    printf("Path is exceding the limit\n");
+                }
+            }else{
+                printf("you must specify a path\n");
+                printf("EXAMPLE: sectfir remove /all/my/files\n");
+            }
+                    
+    }
+    else {
       printf("wrong sytanx: %s\n", argv[1]);
     }
     // END OF PROGRAM

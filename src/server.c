@@ -70,6 +70,12 @@ typedef struct {
   uint8_t settings;
 } sectfirSettings;
 
+enum {
+    REMOVE = 0x86,
+    PARTIAL_REMOVE = 0x82
+};
+
+
 char *server = NULL;
 int port = 0;
 char *filesLocation = NULL;
@@ -96,6 +102,7 @@ ssize_t wrapperSSL_read(SSL *ssl_stream, void *buffer, size_t size);
 int lockFile(char *path);
 int unlockFile(char *path);
 int detectPathTraversal(char *path);
+void traverseDirectoryRemove(char *path,int *partialRemoved);
 
 /*
  * @brief Makes SSL_read return the exact Bytes we ask for
@@ -777,8 +784,48 @@ void *clientHandler(void *arg) {
       status.code = 0xC1;
       SSL_write(ssl_stream, &status, sizeof(sectfirStatus));
     }
-  }
+  }else if(petition.mode == REMOVE){
 
+        sectfirStatus status = {0};
+
+        char path[PATH_MAX] = {0};
+        wrapperSSL_read(ssl_stream,path,PATH_MAX);
+
+        char fullPath[PATH_MAX] = {0};
+        strcat(fullPath, filesLocation);
+        strcat(fullPath,path);
+
+        char *realPath = realpath(fullPath, NULL);
+        if(detectPathTraversal(realPath)){
+            status.code = 0xC1;
+            SSL_write(ssl_stream,&status, sizeof(sectfirStatus));
+        }
+
+        DIR *testIfDir = opendir(realPath);
+        if(testIfDir == NULL){ //file or does not exists
+            if(remove(realPath)){ //error
+                status.code = 0xC1;
+                SSL_write(ssl_stream,&status, sizeof(sectfirStatus));
+            }else{
+                status.code = 0x81;
+                SSL_write(ssl_stream,&status, sizeof(sectfirStatus));
+            }
+        }else{ //Its a directory
+            closedir(testIfDir);
+            int partialRemoved;
+            partialRemoved = 0;
+            traverseDirectoryRemove(realPath,&partialRemoved);
+            if(partialRemoved){
+                status.code = PARTIAL_REMOVE;
+            }else{
+                status.code = 0x81;
+            }
+
+            SSL_write(ssl_stream,&status, sizeof(sectfirStatus));
+        }
+        free(realPath);
+
+  }
   else if (petition.mode == 0xFF) {
     // this means error in selection so dont do anything
     // this is kinda useless
@@ -1105,6 +1152,57 @@ int pushFile(SSL *ssl_stream, char *path, char filename[256], int type,
   }
   return 0;
 }
+
+
+
+void traverseDirectoryRemove(char *path, int *partialRemoved) {
+
+  // client, travels arround a directory -> pushFile
+
+  struct dirent *file = {0};
+  DIR *dirp = opendir(path);
+
+  while ((file = readdir(dirp)) != NULL) {
+    // avoid entering in "." or ".."
+    if ((!strcmp(file->d_name, ".")) || (!strcmp(file->d_name, ".."))) {
+      continue;
+    }
+
+    if (file->d_type == DT_DIR) { // case directory
+
+      // calculate paths
+      size_t len = strlen(path) + strlen(file->d_name) + 2; // 1 "/" --- 2 "\0"
+      char *nextpath = (char *)malloc(len);
+      snprintf(nextpath, len, "%s/%s", path, file->d_name);
+
+      // we "traverse" the directory
+      traverseDirectoryRemove(nextpath, partialRemoved);
+      free(nextpath);
+
+    } else {
+        char filePath[PATH_MAX] = {0};
+        strcat(filePath,path);
+        strcat(filePath,"/");
+        strcat(filePath,file->d_name);
+        if(remove(filePath)){
+            *partialRemoved = 1;
+        }
+    }
+  }
+
+  closedir(dirp);
+  if(rmdir(path)){ //before exit delete current directory
+        *partialRemoved = 1;
+  }
+}
+
+
+
+
+
+
+
+
 /*
  * @brief Traverses a directory and pushes a file or calls itself
  * (recursively) if its a directory
