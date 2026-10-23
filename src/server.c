@@ -791,25 +791,23 @@ void *clientHandler(void *arg) {
         char path[PATH_MAX] = {0};
         wrapperSSL_read(ssl_stream,path,PATH_MAX);
 
-        char fullPath[PATH_MAX] = {0};
+        char fullPath[PATH_MAX+1] = {0};
         strcat(fullPath, filesLocation);
+        strcat(fullPath,"/");
         strcat(fullPath,path);
-
         char *realPath = realpath(fullPath, NULL);
         if(detectPathTraversal(realPath)){
             status.code = 0xC1;
             SSL_write(ssl_stream,&status, sizeof(sectfirStatus));
         }
-
         DIR *testIfDir = opendir(realPath);
         if(testIfDir == NULL){ //file or does not exists
             if(remove(realPath)){ //error
                 status.code = 0xC1;
-                SSL_write(ssl_stream,&status, sizeof(sectfirStatus));
             }else{
                 status.code = 0x81;
-                SSL_write(ssl_stream,&status, sizeof(sectfirStatus));
             }
+        SSL_write(ssl_stream,&status, sizeof(sectfirStatus));
         }else{ //Its a directory
             closedir(testIfDir);
             int partialRemoved;

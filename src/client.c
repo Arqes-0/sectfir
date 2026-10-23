@@ -1299,9 +1299,9 @@ int main(int argc, char *argv[]) {
                 if(strlen(argv[2]) <= PATH_MAX){
                 petition.mode = REMOVE;
                 SSL_write(ssl_stream, &petition, sizeof(petition));
-
-                    size_t len = strlen(argv[2]) + 1;
-                    SSL_write(ssl_stream, &petition, len);
+                    char path[PATH_MAX] = {0};
+                    strcpy(path, argv[2]);
+                    SSL_write(ssl_stream, path, PATH_MAX);
 
                     //look for response
                     wrapperSSL_read(ssl_stream,&status,sizeof(sectfirStatus));
