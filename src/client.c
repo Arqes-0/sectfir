@@ -74,6 +74,12 @@ typedef struct {
   uint8_t settings;
 } sectfirSettings;
 
+enum {
+    REMOVE = 0x86,
+    PARTIAL_REMOVE = 0x82
+};
+
+
 /*
  * @brief Sets the configuration of the client
  * @return always returns 0
@@ -1287,7 +1293,61 @@ int main(int argc, char *argv[]) {
       SSL_write(ssl_stream, &list, sizeof(list));
       printFiles(ssl_stream, argv[2]);
 
-    } else {
+    } 
+    else if(!strcmp(argv[1], "remove")) {
+            if(argc > 2){
+                if(strlen(argv[2]) <= PATH_MAX){
+                petition.mode = REMOVE;
+                 //size_t lenArgv2 = strlen(argv[2]); //this gives error so...
+                char rootPath[PATH_MAX] = {0};
+                strcpy(rootPath,argv[2]);
+                //make it prettyy
+                size_t lenRootPath = strlen(rootPath);
+                int j = 1; 
+                while(lenRootPath > 0 && rootPath[lenRootPath-1]=='/'){
+                    rootPath[lenRootPath-1] = '\0';
+                    lenRootPath--;
+                }
+                SSL_write(ssl_stream, &petition, sizeof(petition));
+                    char path[PATH_MAX] = {0};
+                    strcpy(path, argv[2]);
+                    SSL_write(ssl_stream, path, PATH_MAX);
+
+                    //look for response
+                    wrapperSSL_read(ssl_stream,&status,sizeof(sectfirStatus));
+                    if(status.code != 0x81){
+                        
+                        printf("couldnt delete %s\n",argv[2]);
+
+                    }else{
+                        wrapperSSL_read(ssl_stream,&status,sizeof(sectfirStatus));
+                        while(status.code == 0xAE){
+                        int partialRemoved = 0;
+                        char filePath[PATH_MAX] = {0};
+                        
+                        wrapperSSL_read(ssl_stream,filePath,PATH_MAX);
+                        wrapperSSL_read(ssl_stream,&partialRemoved,sizeof(int));
+        
+                        if(partialRemoved){
+                            printf("couldnt delete: ");
+                        }else{
+                            printf("deleted: ");
+                        }
+                        printf("%s%s\n",rootPath,filePath);
+
+                        wrapperSSL_read(ssl_stream,&status,sizeof(sectfirStatus));
+                        }
+                    }
+                }else{
+                    printf("Path is exceding the limit\n");
+                }
+            }else{
+                printf("you must specify a path\n");
+                printf("EXAMPLE: sectfir remove /all/my/files\n");
+            }
+                    
+    }
+    else {
       printf("wrong sytanx: %s\n", argv[1]);
     }
     // END OF PROGRAM
