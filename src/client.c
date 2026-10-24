@@ -1298,6 +1298,16 @@ int main(int argc, char *argv[]) {
             if(argc > 2){
                 if(strlen(argv[2]) <= PATH_MAX){
                 petition.mode = REMOVE;
+                 //size_t lenArgv2 = strlen(argv[2]); //this gives error so...
+                char rootPath[PATH_MAX] = {0};
+                strcpy(rootPath,argv[2]);
+                //make it prettyy
+                size_t lenRootPath = strlen(rootPath);
+                int j = 1; 
+                while(lenRootPath > 0 && rootPath[lenRootPath-1]=='/'){
+                    rootPath[lenRootPath-1] = '\0';
+                    lenRootPath--;
+                }
                 SSL_write(ssl_stream, &petition, sizeof(petition));
                     char path[PATH_MAX] = {0};
                     strcpy(path, argv[2]);
@@ -1306,14 +1316,27 @@ int main(int argc, char *argv[]) {
                     //look for response
                     wrapperSSL_read(ssl_stream,&status,sizeof(sectfirStatus));
                     if(status.code != 0x81){
-                        if(status.code == PARTIAL_REMOVE){
-                            printf("partialy removed %s\n"
-                                    "some files couldnt be deleted\n",argv[2]);
-                        }else{
-                            printf("Couldnt delete %s\n", argv[2]);
-                        }
+                        
+                        printf("couldnt delete %s\n",argv[2]);
+
                     }else{
-                        printf("deleted %s\n", argv[2]);
+                        wrapperSSL_read(ssl_stream,&status,sizeof(sectfirStatus));
+                        while(status.code == 0xAE){
+                        int partialRemoved = 0;
+                        char filePath[PATH_MAX] = {0};
+                        
+                        wrapperSSL_read(ssl_stream,filePath,PATH_MAX);
+                        wrapperSSL_read(ssl_stream,&partialRemoved,sizeof(int));
+        
+                        if(partialRemoved){
+                            printf("couldnt delete: ");
+                        }else{
+                            printf("deleted: ");
+                        }
+                        printf("%s%s\n",rootPath,filePath);
+
+                        wrapperSSL_read(ssl_stream,&status,sizeof(sectfirStatus));
+                        }
                     }
                 }else{
                     printf("Path is exceding the limit\n");

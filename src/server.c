@@ -102,7 +102,7 @@ ssize_t wrapperSSL_read(SSL *ssl_stream, void *buffer, size_t size);
 int lockFile(char *path);
 int unlockFile(char *path);
 int detectPathTraversal(char *path);
-void traverseDirectoryRemove(char *path,int *partialRemoved);
+void traverseDirectoryRemove(SSL *ssl_stream, char *path, char* nextRelativePath);
 
 /*
  * @brief Makes SSL_read return the exact Bytes we ask for
@@ -799,27 +799,30 @@ void *clientHandler(void *arg) {
         if(detectPathTraversal(realPath)){
             status.code = 0xC1;
             SSL_write(ssl_stream,&status, sizeof(sectfirStatus));
-        }
-        DIR *testIfDir = opendir(realPath);
-        if(testIfDir == NULL){ //file or does not exists
-            if(remove(realPath)){ //error
-                status.code = 0xC1;
-            }else{
-                status.code = 0x81;
-            }
+        }else{
+        status.code = 0x81;
         SSL_write(ssl_stream,&status, sizeof(sectfirStatus));
+        DIR *testIfDir = opendir(realPath);
+        if(testIfDir == NULL){//file or does not exists
+            
+            status.code = 0xAE;
+            SSL_write(ssl_stream,&status,sizeof(sectfirStatus));
+            
+            int partialRemoved = 0;
+            if(remove(realPath)) partialRemoved = 1;
+            
+            SSL_write(ssl_stream,path,PATH_MAX);
+            SSL_write(ssl_stream,&partialRemoved,sizeof(int));
+            
+            status.code = 0xEE;
+            SSL_write(ssl_stream,&status, sizeof(sectfirStatus));
+        
         }else{ //Its a directory
             closedir(testIfDir);
-            int partialRemoved;
-            partialRemoved = 0;
-            traverseDirectoryRemove(realPath,&partialRemoved);
-            if(partialRemoved){
-                status.code = PARTIAL_REMOVE;
-            }else{
-                status.code = 0x81;
-            }
-
+            traverseDirectoryRemove(ssl_stream, realPath, "");
+            status.code = 0xEE;
             SSL_write(ssl_stream,&status, sizeof(sectfirStatus));
+        }
         }
         free(realPath);
 
@@ -1153,45 +1156,67 @@ int pushFile(SSL *ssl_stream, char *path, char filename[256], int type,
 
 
 
-void traverseDirectoryRemove(char *path, int *partialRemoved) {
+void traverseDirectoryRemove(SSL *ssl_stream, char *path, char *relativePath) {
 
   // client, travels arround a directory -> pushFile
 
   struct dirent *file = {0};
   DIR *dirp = opendir(path);
-
   while ((file = readdir(dirp)) != NULL) {
     // avoid entering in "." or ".."
     if ((!strcmp(file->d_name, ".")) || (!strcmp(file->d_name, ".."))) {
       continue;
     }
-
+    int partialRemoved = 0;
     if (file->d_type == DT_DIR) { // case directory
-
+      size_t relativeLen = strlen(relativePath) + strlen(file->d_name) + 2;
+      char *nextRelativePath = (char *)malloc(relativeLen);
+      snprintf(nextRelativePath, relativeLen, "%s/%s", relativePath,
+               file->d_name);
       // calculate paths
       size_t len = strlen(path) + strlen(file->d_name) + 2; // 1 "/" --- 2 "\0"
       char *nextpath = (char *)malloc(len);
       snprintf(nextpath, len, "%s/%s", path, file->d_name);
 
       // we "traverse" the directory
-      traverseDirectoryRemove(nextpath, partialRemoved);
+      traverseDirectoryRemove(ssl_stream, nextpath, nextRelativePath);
       free(nextpath);
+      free(nextRelativePath);
 
     } else {
+          sectfirStatus status = {0};
+
         char filePath[PATH_MAX] = {0};
         strcat(filePath,path);
         strcat(filePath,"/");
         strcat(filePath,file->d_name);
-        if(remove(filePath)){
-            *partialRemoved = 1;
-        }
+
+        char sendPath[PATH_MAX] = {0}; //i dont want to send the full route
+        strcat(sendPath,relativePath); //there are more elegant ways but this is simple
+        strcat(sendPath,"/");
+        strcat(sendPath,file->d_name);
+        if(remove(filePath)) partialRemoved = 1;
+        
+        status.code = 0xAE;
+        SSL_write(ssl_stream, &status,sizeof(sectfirStatus));
+
+        SSL_write(ssl_stream,sendPath,PATH_MAX);
+        SSL_write(ssl_stream,&partialRemoved,sizeof(int));
+
     }
   }
-
-  closedir(dirp);
-  if(rmdir(path)){ //before exit delete current directory
-        *partialRemoved = 1;
-  }
+    int partialRemoved = 0;
+    closedir(dirp);
+    if(strcmp(path, filesLocation)){ //to dont delete the root folder
+        char folderPath[PATH_MAX] = {0}; //ALWAYS READ PATH_MAX
+        sectfirStatus status = {0};
+        strcpy(folderPath,relativePath);
+        if(rmdir(path)) partialRemoved = 1; //before exit delete current directory 
+        status.code = 0xAE;
+        SSL_write(ssl_stream, &status,sizeof(sectfirStatus));
+        SSL_write(ssl_stream,folderPath,PATH_MAX);
+        SSL_write(ssl_stream,&partialRemoved,sizeof(int));
+    }
 }
 
 
