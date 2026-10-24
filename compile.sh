@@ -4,7 +4,7 @@ gcc src/server.c -o build/server.out -lssl -lcrypto -liniparser
 gcc src/sectfirPassword.c -o build/sectfirPassword.out -lssl -lcrypto
 
 cp build/client.out deb/sectfir-client/usr/local/bin/sectfir
-cp build/sectfirPassword.c deb/sectfir-client/usr/local/bin/sectfir-password
+cp build/sectfirPassword.out deb/sectfir-client/usr/local/bin/sectfir-password
 
-cp build/server.out deb/sectfir-server/usc/local/bin/sectfir-server
-cp build/sectfirPassword.out deb/sectfir-server/usc/local/bin/sectfir-password
+cp build/server.out deb/sectfir-server/usr/local/bin/sectfir-server
+cp build/sectfirPassword.out deb/sectfir-server/usr/local/bin/sectfir-password
