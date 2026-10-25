@@ -181,7 +181,7 @@ void printHelp() {
          "\tSpecific: Will push or pull only files\n\n"
          "You can also list files in the server with:\n"
          "\tsectfir list <path>\n"
-	 "\tTo remove files use:\n"
+	 "\To remove files use:\n"
 	 "\tsectfir remove <path>\n"
 	 );
 }
