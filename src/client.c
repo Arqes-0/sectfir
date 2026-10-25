@@ -180,7 +180,10 @@ void printHelp() {
          "For files:\n"
          "\tSpecific: Will push or pull only files\n\n"
          "You can also list files in the server with:\n"
-         "\tsectfir list <path>\n");
+         "\tsectfir list <path>\n"
+	 "\tTo remove files use:\n"
+	 "\tsectfir remove <path>\n"
+	 );
 }
 /*
  * @brief Makes SSL_read return the exact bytes we ask for

@@ -8,3 +8,4 @@ cp build/sectfirPassword.out deb/sectfir-client/usr/local/bin/sectfir-password
 
 cp build/server.out deb/sectfir-server/usr/local/bin/sectfir-server
 cp build/sectfirPassword.out deb/sectfir-server/usr/local/bin/sectfir-password
+cp build/client.out deb/sectfir-server/usr/local/bin/sectfir
