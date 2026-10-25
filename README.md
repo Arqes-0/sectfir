@@ -25,16 +25,11 @@ sectfir list code/sectfir
 
 # Instalation
 Download the .deb files and use apt to install them.
-## Server
+## Server and client
 ```
 apt install ./sectfir-server.deb
 ```
 ## Client
 ```
 apt install ./sectfir-client.deb
-```
-## Server and Client
-if you want to install the server and client in the same machine you will need to use "sectfir-all.deb" file.
-```
-apt install ./sectfir-all.deb
 ```
